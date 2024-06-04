@@ -38,11 +38,8 @@ val mappingIoVersion = project.property("mapping-io.version").toString()
 val junitVersion = project.property("junit.version").toString()
 
 group = pluginGroup
-version = buildString {
-    append(pluginVersion)
-    append('.')
-    append(System.getenv("GITHUB_RUN_NUMBER") ?: "0")
-}
+version = "$pluginVersion+${System.getenv("GITHUB_RUN_NUMBER") ?: "0"}"
+
 description = pluginDescription
 
 base.archivesName.set(pluginId)
@@ -56,11 +53,14 @@ java {
 }
 
 repositories {
-    mavenCentral()
-
     maven("https://maven.fabricmc.net") {
         name = "Fabric"
+        content {
+            includeGroup("net.fabricmc")
+        }
     }
+
+    mavenCentral()
 }
 
 dependencies {
@@ -103,7 +103,7 @@ gradlePlugin {
             id = "${pluginGroup}.${pluginId}"
             displayName = pluginName
             description = pluginDescription
-            implementationClass = "dev.galacticraft.mojarn.api.MojarnPlugin"
+            implementationClass = "dev.galacticraft.mojarn.impl.MojarnPlugin"
         }
     }
 }

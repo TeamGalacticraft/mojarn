@@ -20,9 +20,9 @@
  * SOFTWARE.
  */
 
-package dev.galacticraft.mojarn.api;
+package dev.galacticraft.mojarn.impl;
 
-import dev.galacticraft.mojarn.impl.MojarnExtensionImpl;
+import dev.galacticraft.mojarn.api.MojarnExtension;
 import net.fabricmc.loom.api.LoomGradleExtensionAPI;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;

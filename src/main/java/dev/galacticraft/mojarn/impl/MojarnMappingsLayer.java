@@ -155,36 +155,45 @@ public class MojarnMappingsLayer implements MappingLayer {
                                                 }
 
                                                 String typeName = typeClass.getDstName(named);
-                                                if (yarn2official.containsKey(typeName)) {
-                                                    // check if the argument name is the same as the type name
-                                                    if (argName.equalsIgnoreCase(typeName)) {
-                                                        String offDst = yarn2official.get(typeName);
-                                                        argName = Character.toLowerCase(offDst.charAt(0)) + offDst.substring(1);
-                                                    } else if (this.partialMatch) {
-                                                        // check if the argument name contains part of the type name
-                                                        boolean success = false;
-                                                        // split the name ("CamelCase" -> ["Camel", "Case"])
-                                                        for (String s : PATTERN.split(typeName)) {
-                                                            if (s.equalsIgnoreCase(argName)) {
-                                                                success = true;
-                                                                String offDst = yarn2official.get(typeName);
-                                                                argName = Character.toLowerCase(offDst.charAt(0)) + offDst.substring(1);
-                                                                break;
-                                                            }
+
+                                                if (typeName != null) {
+                                                    // check if class ends in numeric suffix
+                                                    if (!Character.isDigit(typeName.charAt(typeName.length() - 1))) {
+                                                        // strip numeric suffix on argument (if it exists)
+                                                        while (Character.isDigit(argName.charAt(argName.length() - 1))) {
+                                                            argName = argName.substring(0, argName.length() - 1);
                                                         }
-                                                        if (!success && this.skipDifferent) continue;
-                                                    } else if (this.skipDifferent) {
-                                                        continue;
+                                                    }
+
+                                                    if (yarn2official.containsKey(typeName)) {
+                                                        // check if the argument name is the same as the type name
+                                                        if (argName.equalsIgnoreCase(typeName)) {
+                                                            String offDst = yarn2official.get(typeName);
+                                                            argName = Character.toLowerCase(offDst.charAt(0)) + offDst.substring(1);
+                                                        } else if (this.partialMatch) {
+                                                            // check if the argument name contains part of the type name
+                                                            boolean success = false;
+                                                            // split the name ("CamelCase" -> ["Camel", "Case"])
+                                                            for (String s : PATTERN.split(typeName)) {
+                                                                if (s.equalsIgnoreCase(argName)) {
+                                                                    success = true;
+                                                                    String offDst = yarn2official.get(typeName);
+                                                                    argName = Character.toLowerCase(offDst.charAt(0)) + offDst.substring(1);
+                                                                    break;
+                                                                }
+                                                            }
+                                                            if (!success && this.skipDifferent) continue;
+                                                        } else if (this.skipDifferent) {
+                                                            continue;
+                                                        }
                                                     }
                                                 }
                                             }
                                         }
 
                                         // avoid duplicate names
-                                        if (!names.containsKey(argName)) {
-                                            names.put(argName, 1);
-                                        } else {
-                                            argName += names.get(argName);
+                                        int dup = names.merge(argName, 0, (s, k) -> k+1);
+                                        if (dup != 0) {
                                             names.put(argName, names.get(argName) + 1);
                                         }
 
@@ -199,14 +208,20 @@ public class MojarnMappingsLayer implements MappingLayer {
                                 // no type data, so it is just copied verbatim
                                 if (this.mapVariables) {
                                     for (MappingTree.MethodVarMapping var : yarnMethod.getVars()) {
-                                        String paramName = var.getDstName(named);
+                                        String varName = var.getDstName(named);
+                                        if (varName != null) {
+                                            // strip numeric suffix on variable (if it exists)
+                                            while (Character.isDigit(varName.charAt(varName.length() - 1))) {
+                                                varName = varName.substring(0, varName.length() - 1);
+                                            }
 
-                                        if (names.containsKey(paramName)) {
-                                            paramName += names.get(paramName);
+                                            if (names.containsKey(varName)) {
+                                                varName += names.merge(varName, 1, (s, k) -> k + 1);
+                                            }
+
+                                            mappingVisitor.visitMethodVar(var.getLvtRowIndex(), var.getLvIndex(), var.getStartOpIdx(), var.getEndOpIdx(), null);
+                                            mappingVisitor.visitDstName(MappedElementKind.METHOD_VAR, 0, varName);
                                         }
-
-                                        mappingVisitor.visitMethodVar(var.getLvtRowIndex(), var.getLvIndex(), var.getStartOpIdx(), var.getEndOpIdx(), null);
-                                        mappingVisitor.visitDstName(MappedElementKind.METHOD_VAR, 0, paramName);
                                     }
                                 }
                             }
@@ -220,7 +235,7 @@ public class MojarnMappingsLayer implements MappingLayer {
 
     @Nullable
     private static String getClassName(@Nullable String fullName) {
-        return fullName == null ? null : fullName.substring(Math.max(fullName.lastIndexOf('/') + 1, fullName.lastIndexOf('$') + 1));
+        return fullName == null ? null : fullName.substring(Math.max(fullName.lastIndexOf('/'), fullName.lastIndexOf('$')) + 1);
     }
 
     @Override

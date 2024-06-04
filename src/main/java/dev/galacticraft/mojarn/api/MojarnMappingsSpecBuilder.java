@@ -22,6 +22,8 @@
 
 package dev.galacticraft.mojarn.api;
 
+import net.fabricmc.loom.api.mappings.layered.spec.FileMappingsSpecBuilder;
+
 /**
  * A builder for a Mojarn mappings spec.
  */
@@ -57,6 +59,7 @@ public interface MojarnMappingsSpecBuilder {
     /**
      * Whether the mapping file is an Enigma mappings file (forwarded to file mapping builder).
      * @return This builder
+     * @see FileMappingsSpecBuilder#enigmaMappings()
      */
     MojarnMappingsSpecBuilder fileIsEnigma();
 }
