@@ -26,11 +26,15 @@ import dev.galacticraft.mojarn.api.MojarnExtension;
 import net.fabricmc.loom.api.LoomGradleExtensionAPI;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The plugin.
  */
 public final class MojarnPlugin implements Plugin<Project> {
+    public static final Logger LOGGER = LoggerFactory.getLogger("Mojarn");
+
     @Override
     public void apply(Project project) {
         project.getExtensions().create(MojarnExtension.class, "mojarn", MojarnExtensionImpl.class, project.getExtensions().getByType(LoomGradleExtensionAPI.class));

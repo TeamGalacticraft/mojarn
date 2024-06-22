@@ -60,6 +60,8 @@ public class MojarnMappingsLayer implements MappingLayer {
 
     @Override
     public void visit(MappingVisitor mappingVisitor) throws IOException {
+        long start = System.currentTimeMillis();
+
         this.mojang.visit(mappingVisitor);
 
         // generate a tree of official mappings
@@ -231,6 +233,9 @@ public class MojarnMappingsLayer implements MappingLayer {
                 mappingVisitor.visitEnd();
             }
         }
+
+        long time = System.currentTimeMillis() - start;
+        MojarnPlugin.LOGGER.info("Mapping layer generation took {}ms", time);
     }
 
     @Nullable
