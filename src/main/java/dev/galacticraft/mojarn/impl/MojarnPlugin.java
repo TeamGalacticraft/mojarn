@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
  */
 public final class MojarnPlugin implements Plugin<Project> {
     public static final Logger LOGGER = LoggerFactory.getLogger("Mojarn");
+    public static final boolean isCI = System.getenv("CI") != null;
 
     @Override
     public void apply(Project project) {

@@ -47,8 +47,9 @@ public class MojarnMappingsLayer implements MappingLayer {
     private final boolean partialMatch;
     private final boolean skipDifferent;
     private final boolean mapVariables;
+    private final boolean skipCI;
 
-    public MojarnMappingsLayer(@NotNull MappingLayer intermediary, @NotNull MappingLayer mojang, @NotNull MappingLayer yarn, boolean remapArguments, boolean partialMatch, boolean skipDifferent, boolean mapVariables) {
+    public MojarnMappingsLayer(@NotNull MappingLayer intermediary, @NotNull MappingLayer mojang, @NotNull MappingLayer yarn, boolean remapArguments, boolean partialMatch, boolean skipDifferent, boolean mapVariables, boolean skipCI) {
         this.intermediary = intermediary;
         this.mojang = mojang;
         this.yarn = yarn;
@@ -56,6 +57,7 @@ public class MojarnMappingsLayer implements MappingLayer {
         this.partialMatch = partialMatch;
         this.skipDifferent = skipDifferent;
         this.mapVariables = mapVariables;
+        this.skipCI = skipCI;
     }
 
     @Override
@@ -63,6 +65,11 @@ public class MojarnMappingsLayer implements MappingLayer {
         long start = System.currentTimeMillis();
 
         this.mojang.visit(mappingVisitor);
+
+        if (MojarnPlugin.isCI && this.skipCI) {
+            MojarnPlugin.LOGGER.info("Skipping mapping layer generation for CI build.");
+            return;
+        }
 
         // generate a tree of official mappings
         MemoryMappingTree officialTree = new MemoryMappingTree();
@@ -124,9 +131,8 @@ public class MojarnMappingsLayer implements MappingLayer {
                                     if (desc[i] == 'L') {
                                         // parse class types
                                         StringBuilder sb = new StringBuilder();
-                                        while (desc[i] != ';') {
+                                        while (desc[++i] != ';') {
                                             sb.append(desc[i]);
-                                            i++;
                                         }
                                         descriptor.add(sb.toString());
                                     } else if (desc[i] == ')') {
@@ -148,7 +154,7 @@ public class MojarnMappingsLayer implements MappingLayer {
                                         // check if the argument is a class
                                         if (descriptor.get(i) != null) {
                                             // get the class mapping of the argument type
-                                            MappingTree.ClassMapping typeClass = yarnTree.getClass(descriptor.get(i));
+                                            MappingTree.ClassMapping typeClass = yarnTree.getClass(descriptor.get(i), named);
                                             // if there is a mapping for this type, try to remap it.
                                             if (typeClass != null) {
                                                 // skip if class remapping is disabled
@@ -156,7 +162,7 @@ public class MojarnMappingsLayer implements MappingLayer {
                                                     continue;
                                                 }
 
-                                                String typeName = typeClass.getDstName(named);
+                                                String typeName = getClassName(descriptor.get(i));
 
                                                 if (typeName != null) {
                                                     // check if class ends in numeric suffix

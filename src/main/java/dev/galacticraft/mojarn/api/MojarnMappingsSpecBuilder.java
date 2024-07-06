@@ -30,35 +30,42 @@ import net.fabricmc.loom.api.mappings.layered.spec.FileMappingsSpecBuilder;
 public interface MojarnMappingsSpecBuilder {
     /**
      * Whether to remap arguments with class types.
-     * @param remapArguments Whether to map arguments with class types
-     * @return This builder
+     * @param remapArguments whether to map arguments with class types
+     * @return this builder
      */
     MojarnMappingsSpecBuilder remapArguments(boolean remapArguments);
 
     /**
      * Whether to remap partial argument matches with class types.
-     * @param partialMatch Whether to remap partial argument matches with class types
-     * @return This builder
+     * @param partialMatch whether to remap partial argument matches with class types
+     * @return this builder
      */
     MojarnMappingsSpecBuilder partialMatch(boolean partialMatch);
 
     /**
      * Disable mapping when the class name is different.
-     * @param skipDifferent Whether to skip mapping when the class name is different
-     * @return This builder
+     * @param skipDifferent whether to skip mapping when the class name is different
+     * @return this builder
      */
     MojarnMappingsSpecBuilder skipDifferent(boolean skipDifferent);
 
     /**
      * Whether to map variables.
-     * @param mapVariables Whether to map variables
-     * @return This builder
+     * @param mapVariables whether to map variables
+     * @return this builder
      */
     MojarnMappingsSpecBuilder mapVariables(boolean mapVariables);
+    
+    /**
+     * Whether to disable mojarn when in a CI environment.
+     * @param skipCI whether to disable mojarn when in a CI environment
+     * @return this builder
+     */
+    MojarnMappingsSpecBuilder skipCI(boolean skipCI);
 
     /**
      * Whether the mapping file is an Enigma mappings file (forwarded to file mapping builder).
-     * @return This builder
+     * @return this builder
      * @see FileMappingsSpecBuilder#enigmaMappings()
      */
     MojarnMappingsSpecBuilder fileIsEnigma();

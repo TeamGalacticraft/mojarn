@@ -56,6 +56,6 @@ public class MojarnExtensionImpl implements MojarnExtension {
         FileMappingsSpec fileSpec = fileBuilder.build();
         MojangMappingsSpec mojangSpec = MojangMappingsSpecBuilderImpl.builder().build();
 
-        return loom.layered(b -> b.addLayer(new MojarnMappingsSpec(new IntermediaryMappingsSpec(), mojangSpec, fileSpec, builder.remapArguments, builder.partialMatch, builder.skipDifferent, builder.mapVariables)));
+        return loom.layered(b -> b.addLayer(new MojarnMappingsSpec(new IntermediaryMappingsSpec(), mojangSpec, fileSpec, builder.remapArguments, builder.partialMatch, builder.skipDifferent, builder.skipCI, builder.mapVariables)));
     }
 }

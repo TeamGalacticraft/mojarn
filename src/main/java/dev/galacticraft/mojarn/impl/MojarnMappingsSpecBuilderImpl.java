@@ -29,6 +29,7 @@ public class MojarnMappingsSpecBuilderImpl implements MojarnMappingsSpecBuilder 
     boolean partialMatch = false;
     boolean skipDifferent = false;
     boolean mapVariables = true;
+    boolean skipCI = true;
     boolean fileIsEnigma = false;
 
     @Override
@@ -52,6 +53,12 @@ public class MojarnMappingsSpecBuilderImpl implements MojarnMappingsSpecBuilder 
     @Override
     public MojarnMappingsSpecBuilder mapVariables(boolean mapVariables) {
         this.mapVariables = mapVariables;
+        return this;
+    }
+
+    @Override
+    public MojarnMappingsSpecBuilder skipCI(boolean skipCI) {
+        this.skipCI = skipCI;
         return this;
     }
 
