@@ -65,7 +65,7 @@ repositories {
 
 dependencies {
     implementation(gradleApi())
-    implementation("net.fabricmc:fabric-loom:${loomVersion}")
+    implementation("net.fabricmc:fabric-loom:${loomVersion}") { isTransitive = false }
     implementation("net.fabricmc:mapping-io:${mappingIoVersion}")
 
     testImplementation(platform("org.junit:junit-bom:${junitVersion}"))

@@ -124,113 +124,18 @@ public class MojarnMappingsLayer implements MappingLayer {
                             String dstDesc = yarnMethod.getDstDesc(named);
                             if (dstDesc != null) {
                                 mappingVisitor.visitMethod(method.getSrcName(), method.getSrcDesc());
-                                // parse the method descriptor into a list of arguments
-                                char[] desc = dstDesc.toCharArray();
-                                descriptor.clear();
-                                for (int i = 1; i < desc.length; i++) {
-                                    if (desc[i] == 'L') {
-                                        // parse class types
-                                        StringBuilder sb = new StringBuilder();
-                                        while (desc[++i] != ';') {
-                                            sb.append(desc[i]);
-                                        }
-                                        descriptor.add(sb.toString());
-                                    } else if (desc[i] == ')') {
-                                        // end of method descriptor
-                                        break;
-                                    } else {
-                                        // primitive types have no mappings
-                                        descriptor.add(null);
-                                    }
-                                }
+
+                                parseMethodDescriptor(dstDesc.toCharArray(), descriptor);
 
                                 HashMap<String, Integer> names = new HashMap<>();
 
                                 // visit all method arguments
-                                int i = 0;
-                                for (MappingTree.MethodArgMapping arg : yarnMethod.getArgs()) {
-                                    String argName = arg.getDstName(named);
-                                    if (argName != null) {
-                                        // check if the argument is a class
-                                        if (descriptor.get(i) != null) {
-                                            // get the class mapping of the argument type
-                                            MappingTree.ClassMapping typeClass = yarnTree.getClass(descriptor.get(i), named);
-                                            // if there is a mapping for this type, try to remap it.
-                                            if (typeClass != null) {
-                                                // skip if class remapping is disabled
-                                                if (!this.remapArguments) {
-                                                    continue;
-                                                }
-
-                                                String typeName = getClassName(descriptor.get(i));
-
-                                                if (typeName != null) {
-                                                    // check if class ends in numeric suffix
-                                                    if (!Character.isDigit(typeName.charAt(typeName.length() - 1))) {
-                                                        // strip numeric suffix on argument (if it exists)
-                                                        while (Character.isDigit(argName.charAt(argName.length() - 1))) {
-                                                            argName = argName.substring(0, argName.length() - 1);
-                                                        }
-                                                    }
-
-                                                    if (yarn2official.containsKey(typeName)) {
-                                                        // check if the argument name is the same as the type name
-                                                        if (argName.equalsIgnoreCase(typeName)) {
-                                                            String offDst = yarn2official.get(typeName);
-                                                            argName = Character.toLowerCase(offDst.charAt(0)) + offDst.substring(1);
-                                                        } else if (this.partialMatch) {
-                                                            // check if the argument name contains part of the type name
-                                                            boolean success = false;
-                                                            // split the name ("CamelCase" -> ["Camel", "Case"])
-                                                            for (String s : PATTERN.split(typeName)) {
-                                                                if (s.equalsIgnoreCase(argName)) {
-                                                                    success = true;
-                                                                    String offDst = yarn2official.get(typeName);
-                                                                    argName = Character.toLowerCase(offDst.charAt(0)) + offDst.substring(1);
-                                                                    break;
-                                                                }
-                                                            }
-                                                            if (!success && this.skipDifferent) continue;
-                                                        } else if (this.skipDifferent) {
-                                                            continue;
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        // avoid duplicate names
-                                        int dup = names.merge(argName, 0, (s, k) -> k+1);
-                                        if (dup != 0) {
-                                            names.put(argName, names.get(argName) + 1);
-                                        }
-
-                                        // apply the mapping
-                                        mappingVisitor.visitMethodArg(arg.getArgPosition(), arg.getLvIndex(), null);
-                                        mappingVisitor.visitDstName(MappedElementKind.METHOD_ARG, 0, argName);
-                                    }
-                                    i++;
-                                }
+                                mapArguments(mappingVisitor, yarnMethod, named, descriptor, yarnTree, yarn2official, names);
 
                                 // visit all method variables (if enabled)
                                 // no type data, so it is just copied verbatim
                                 if (this.mapVariables) {
-                                    for (MappingTree.MethodVarMapping var : yarnMethod.getVars()) {
-                                        String varName = var.getDstName(named);
-                                        if (varName != null) {
-                                            // strip numeric suffix on variable (if it exists)
-                                            while (Character.isDigit(varName.charAt(varName.length() - 1))) {
-                                                varName = varName.substring(0, varName.length() - 1);
-                                            }
-
-                                            if (names.containsKey(varName)) {
-                                                varName += names.merge(varName, 1, (s, k) -> k + 1);
-                                            }
-
-                                            mappingVisitor.visitMethodVar(var.getLvtRowIndex(), var.getLvIndex(), var.getStartOpIdx(), var.getEndOpIdx(), null);
-                                            mappingVisitor.visitDstName(MappedElementKind.METHOD_VAR, 0, varName);
-                                        }
-                                    }
+                                    mapVariables(mappingVisitor, yarnMethod, named, names);
                                 }
                             }
                         }
@@ -244,8 +149,149 @@ public class MojarnMappingsLayer implements MappingLayer {
         MojarnPlugin.LOGGER.info("Mapping layer generation took {}ms", time);
     }
 
-    @Nullable
-    private static String getClassName(@Nullable String fullName) {
+    /**
+     * Parses the given method descriptor into a list of arguments.
+     * @param desc the method descriptor to parse
+     * @param descriptor the output list (will be cleared)
+     */
+    private static void parseMethodDescriptor(char[] desc, List<String> descriptor) {
+        descriptor.clear();
+        for (int i = 1; i < desc.length; i++) {
+            if (desc[i] == 'L') {
+                // parse class types
+                StringBuilder sb = new StringBuilder();
+                while (desc[++i] != ';') {
+                    sb.append(desc[i]);
+                }
+                descriptor.add(sb.toString());
+            } else if (desc[i] == ')') {
+                // end of method descriptor
+                break;
+            } else {
+                // primitive types have no mappings
+                descriptor.add(null);
+            }
+        }
+    }
+
+    /**
+     * Maps the arguments of the given method, remapping as necessary.
+     * @param output the output mapping visitor
+     * @param method the method whose arguments are being mapped
+     * @param named the integer id of the named namespace in the {@code yarnTree}
+     * @param descriptor the method descriptor ({@code null} represents a primitive)
+     * @param yarnTree the tree of yarn/file mapping names
+     * @param yarn2official map of yarn to official class mapping names
+     * @param names map of already visited names (to avoid duplication)
+     * @throws IOException if the mapping visitor fails to accept the name(s)
+     */
+    private void mapArguments(MappingVisitor output, MappingTree.MethodMapping method, int named, List<@Nullable String> descriptor, MemoryMappingTree yarnTree, Map<String, String> yarn2official, HashMap<String, Integer> names) throws IOException {
+        int i = 0;
+        for (MappingTree.MethodArgMapping arg : method.getArgs()) {
+            String argName = arg.getDstName(named);
+            if (argName != null) {
+                // check if the argument is a class
+                String desc = descriptor.get(i++);
+                if (this.remapArguments && desc != null) {
+                    // get the class mapping of the argument type
+                    MappingTree.ClassMapping typeClass = yarnTree.getClass(desc, named);
+                    // if there is a mapping for this type, try to remap it.
+                    if (typeClass != null) {
+                        // skip if class remapping is disabled
+                        String typeName = getClassName(desc);
+
+                        if (yarn2official.containsKey(typeName)) {
+                            argName = remapToOfficial(yarn2official, typeName, argName);
+                        }
+                    }
+                }
+
+                if (argName != null) {
+                    // avoid duplicate names
+                    int dup = names.merge(argName, 0, (s, k) -> s + 1);
+
+                    // apply the mapping
+                    output.visitMethodArg(arg.getArgPosition(), arg.getLvIndex(), null);
+                    output.visitDstName(MappedElementKind.METHOD_ARG, 0, dup == 0 ? argName : argName + dup);
+                }
+            }
+        }
+    }
+
+    /**
+     * Remaps the argument name based on its type
+     * @param yarn2official map of yarn to official class mapping names
+     * @param typeName the (yarn) type name of the argument
+     * @param argName the argument name to remap
+     * @return the remapped name, or {@code null} if the name should be dropped.
+     */
+    private @Nullable String remapToOfficial(Map<String, String> yarn2official, @NotNull String typeName, String argName) {
+        // check if class ends in numeric suffix
+        if (!Character.isDigit(typeName.charAt(typeName.length() - 1))) {
+            // strip numeric suffix on argument (if it exists)
+            while (Character.isDigit(argName.charAt(argName.length() - 1))) {
+                argName = argName.substring(0, argName.length() - 1);
+            }
+        }
+
+        // check if the argument name is the same as the type name
+        if (argName.equalsIgnoreCase(typeName)) {
+            String offDst = yarn2official.get(typeName);
+            return lowerCamelCase(offDst);
+        } else if (this.partialMatch) {
+            // check if the argument name contains part of the type name
+            // split the name ("CamelCase" -> ["Camel", "Case"])
+            for (String s : PATTERN.split(typeName)) {
+                if (s.equalsIgnoreCase(argName)) {
+                    String offDst = yarn2official.get(typeName);
+                    return lowerCamelCase(offDst);
+                }
+            }
+        }
+        return this.skipDifferent ? null : argName;
+    }
+
+    /**
+     * Maps the variables of the given method. Copied verbatim as there is no type information provided.
+     * @param output the output mapping visitor
+     * @param method the method whose variables are being mapped
+     * @param named the integer id of the named namespace in the {@code yarnTree}
+     * @param names map of already visited names (to avoid duplication)
+     * @throws IOException if the mapping visitor fails to accept the name(s)
+     */
+    private static void mapVariables(MappingVisitor output, MappingTree.MethodMapping method, int named, HashMap<String, Integer> names) throws IOException {
+        for (MappingTree.MethodVarMapping var : method.getVars()) {
+            String varName = var.getDstName(named);
+            if (varName != null) {
+                // strip numeric suffix on variable (if it exists)
+                while (Character.isDigit(varName.charAt(varName.length() - 1))) {
+                    varName = varName.substring(0, varName.length() - 1);
+                }
+                int dup = names.merge(varName, 0, (s, k) -> s + 1);
+
+                output.visitMethodVar(var.getLvtRowIndex(), var.getLvIndex(), var.getStartOpIdx(), var.getEndOpIdx(), null);
+                output.visitDstName(MappedElementKind.METHOD_VAR, 0, dup == 0 ? varName : varName + dup);
+            }
+        }
+    }
+
+    /**
+     * Converts the string from {@code PascalCase} to {@code lowerCamelCase}.
+     * The string must not be empty.
+     * @param string the string to convert
+     * @return the converted string
+     */
+    private static @NotNull String lowerCamelCase(@NotNull String string) {
+        return Character.toLowerCase(string.charAt(0)) + string.substring(1);
+    }
+
+    /**
+     * Extracts the class name (e.g. {@code Def}) from the full class descriptor (e.g. {@code a/b/c/Def}).
+     * Supports subclasses too.
+     * @param fullName the full class descriptor
+     * @return the extracted class name
+     */
+    private static @Nullable String getClassName(@Nullable String fullName) {
         return fullName == null ? null : fullName.substring(Math.max(fullName.lastIndexOf('/'), fullName.lastIndexOf('$')) + 1);
     }
 
