@@ -23,14 +23,24 @@
 package dev.galacticraft.mojarn.impl;
 
 import dev.galacticraft.mojarn.api.MojarnMappingsSpecBuilder;
+import net.fabricmc.loom.api.mappings.layered.spec.MappingsSpec;
+import net.fabricmc.loom.configuration.providers.mappings.intermediary.IntermediaryMappingsSpec;
+import net.fabricmc.loom.configuration.providers.mappings.mojmap.MojangMappingsSpecBuilderImpl;
 
 public class MojarnMappingsSpecBuilderImpl implements MojarnMappingsSpecBuilder {
+    boolean nameSyntheticMethods = false;
     boolean remapArguments = true;
     boolean partialMatch = false;
     boolean skipDifferent = false;
     boolean mapVariables = true;
     boolean skipCI = true;
     boolean fileIsEnigma = false;
+
+    @Override
+    public MojarnMappingsSpecBuilder nameSyntheticMethods(boolean nameSyntheticMethods) {
+        this.nameSyntheticMethods = nameSyntheticMethods;
+        return this;
+    }
 
     @Override
     public MojarnMappingsSpecBuilder remapArguments(boolean remapArguments) {
@@ -66,5 +76,20 @@ public class MojarnMappingsSpecBuilderImpl implements MojarnMappingsSpecBuilder 
     public MojarnMappingsSpecBuilder fileIsEnigma() {
         this.fileIsEnigma = true;
         return this;
+    }
+
+    public MojarnMappingsSpec build(MappingsSpec<?> intermediary, MappingsSpec<?> mojang, MappingsSpec<?> file) {
+        return new MojarnMappingsSpec(intermediary, mojang, file, this.remapArguments, this.partialMatch, this.skipDifferent, this.mapVariables, this.skipCI);
+    }
+
+    public MojarnMappingsSpec build(MappingsSpec<?> intermediary, MappingsSpec<?> file) {
+        MojangMappingsSpecBuilderImpl builder = MojangMappingsSpecBuilderImpl.builder();
+        builder.setNameSyntheticMembers(this.nameSyntheticMethods);
+
+        return this.build(intermediary, builder.build(), file);
+    }
+
+    public MojarnMappingsSpec build(MappingsSpec<?> file) {
+        return this.build(new IntermediaryMappingsSpec(), file);
     }
 }

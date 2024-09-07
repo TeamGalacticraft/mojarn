@@ -23,7 +23,7 @@
 plugins {
     `java-gradle-plugin`
     `maven-publish`
-    id("com.gradle.plugin-publish") version("1.2.1")
+    id("com.gradle.plugin-publish") version("1.2.2")
     id("org.cadixdev.licenser") version("0.6.1")
 }
 
@@ -35,7 +35,6 @@ val pluginVersion = project.property("plugin.version").toString()
 
 val loomVersion = project.property("loom.version").toString()
 val mappingIoVersion = project.property("mapping-io.version").toString()
-val junitVersion = project.property("junit.version").toString()
 
 group = pluginGroup
 version = "$pluginVersion+${System.getenv("GITHUB_RUN_NUMBER") ?: "0"}"
@@ -65,11 +64,8 @@ repositories {
 
 dependencies {
     implementation(gradleApi())
-    implementation("net.fabricmc:fabric-loom:${loomVersion}") { isTransitive = false }
+    compileOnly("net.fabricmc:fabric-loom:${loomVersion}")
     implementation("net.fabricmc:mapping-io:${mappingIoVersion}")
-
-    testImplementation(platform("org.junit:junit-bom:${junitVersion}"))
-    testImplementation("org.junit.jupiter:junit-jupiter")
 }
 
 tasks.withType<JavaCompile> {
@@ -79,10 +75,6 @@ tasks.withType<JavaCompile> {
 
 tasks.withType<Jar> {
     from("LICENSE")
-}
-
-tasks.test {
-    useJUnitPlatform()
 }
 
 tasks.javadoc {

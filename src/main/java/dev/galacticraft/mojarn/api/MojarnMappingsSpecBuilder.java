@@ -29,6 +29,14 @@ import net.fabricmc.loom.api.mappings.layered.spec.FileMappingsSpecBuilder;
  */
 public interface MojarnMappingsSpecBuilder {
     /**
+     * Whether to name synthetic methods.
+     * @param nameSyntheticMethods whether to name synthetic methods
+     * @return this builder
+     * @see net.fabricmc.loom.api.mappings.layered.spec.MojangMappingsSpecBuilder#setNameSyntheticMembers(boolean)
+     */
+    MojarnMappingsSpecBuilder nameSyntheticMethods(boolean nameSyntheticMethods);
+
+    /**
      * Whether to remap arguments with class types.
      * @param remapArguments whether to map arguments with class types
      * @return this builder

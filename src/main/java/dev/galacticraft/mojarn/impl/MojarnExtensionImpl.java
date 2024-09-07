@@ -26,11 +26,7 @@ import dev.galacticraft.mojarn.api.MojarnExtension;
 import dev.galacticraft.mojarn.api.MojarnMappingsSpecBuilder;
 import net.fabricmc.loom.api.LoomGradleExtensionAPI;
 import net.fabricmc.loom.api.mappings.layered.spec.FileSpec;
-import net.fabricmc.loom.configuration.providers.mappings.file.FileMappingsSpec;
 import net.fabricmc.loom.configuration.providers.mappings.file.FileMappingsSpecBuilderImpl;
-import net.fabricmc.loom.configuration.providers.mappings.intermediary.IntermediaryMappingsSpec;
-import net.fabricmc.loom.configuration.providers.mappings.mojmap.MojangMappingsSpec;
-import net.fabricmc.loom.configuration.providers.mappings.mojmap.MojangMappingsSpecBuilderImpl;
 import org.gradle.api.Action;
 import org.gradle.api.artifacts.Dependency;
 
@@ -53,9 +49,6 @@ public class MojarnExtensionImpl implements MojarnExtension {
         FileMappingsSpecBuilderImpl fileBuilder = FileMappingsSpecBuilderImpl.builder(FileSpec.create(file));
         if (builder.fileIsEnigma) fileBuilder.enigmaMappings();
 
-        FileMappingsSpec fileSpec = fileBuilder.build();
-        MojangMappingsSpec mojangSpec = MojangMappingsSpecBuilderImpl.builder().build();
-
-        return loom.layered(b -> b.addLayer(new MojarnMappingsSpec(new IntermediaryMappingsSpec(), mojangSpec, fileSpec, builder.remapArguments, builder.partialMatch, builder.skipDifferent, builder.skipCI, builder.mapVariables)));
+        return loom.layered(b -> b.addLayer(builder.build(fileBuilder.build())));
     }
 }
