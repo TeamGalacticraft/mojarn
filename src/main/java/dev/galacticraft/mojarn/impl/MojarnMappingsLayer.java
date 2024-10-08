@@ -28,11 +28,12 @@ import net.fabricmc.loom.configuration.providers.mappings.intermediary.Intermedi
 import net.fabricmc.mappingio.MappedElementKind;
 import net.fabricmc.mappingio.MappingVisitor;
 import net.fabricmc.mappingio.tree.MappingTree;
+import net.fabricmc.mappingio.tree.MappingTreeView;
 import net.fabricmc.mappingio.tree.MemoryMappingTree;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.IOException;
+import java.io.*;
 import java.util.*;
 import java.util.regex.Pattern;
 
@@ -48,6 +49,7 @@ public class MojarnMappingsLayer implements MappingLayer {
     private final boolean skipDifferent;
     private final boolean mapVariables;
     private final boolean skipCI;
+    private int skipped = 0;
 
     public MojarnMappingsLayer(@NotNull MappingLayer intermediary, @NotNull MappingLayer mojang, @NotNull MappingLayer yarn, boolean remapArguments, boolean partialMatch, boolean skipDifferent, boolean mapVariables, boolean skipCI) {
         this.intermediary = intermediary;
@@ -62,6 +64,8 @@ public class MojarnMappingsLayer implements MappingLayer {
 
     @Override
     public void visit(MappingVisitor mappingVisitor) throws IOException {
+        this.skipped = 0;
+
         long start = System.currentTimeMillis();
 
         this.mojang.visit(mappingVisitor);
@@ -88,15 +92,15 @@ public class MojarnMappingsLayer implements MappingLayer {
         int named = yarnTree.getNamespaceId(MappingsNamespace.NAMED.toString());
 
         // map yarn class names to official class names
-        Map<String, String> yarn2official = new HashMap<>(yarnTree.getClasses().size());
+        HashMap<String, String> yarn2official = new HashMap<>(yarnTree.getClasses().size());
         for (MappingTree.ClassMapping clazz : officialTree.getClasses()) {
             MappingTree.ClassMapping yarn = yarnTree.getClass(clazz.getDstName(intermediary));
             if (yarn != null) {
                 String yarnName = getClassName(yarn.getDstName(named));
                 String officialName = getClassName(clazz.getDstName(official));
                 // ignore classes that have the same name in both mappings
-                if (yarnName != null && !yarnName.equals(officialName)) {
-                    yarn2official.put(yarnName, officialName);
+                if (yarnName != null && officialName != null && !yarnName.equals(officialName)) {
+                    yarn2official.put(yarnName, lowerCamelCase(officialName));
                 }
             }
         }
@@ -106,6 +110,7 @@ public class MojarnMappingsLayer implements MappingLayer {
 
         // cached arraylist for method descriptor parsing
         List<String> descriptor = new ArrayList<>(16);
+        HashMap<String, Integer> names = new HashMap<>(16);
 
         // visit all official classes
         for (MappingTree.ClassMapping clazz : officialTree.getClasses()) {
@@ -125,9 +130,8 @@ public class MojarnMappingsLayer implements MappingLayer {
                             if (dstDesc != null) {
                                 mappingVisitor.visitMethod(method.getSrcName(), method.getSrcDesc());
 
+                                names.clear(); // reset used names
                                 parseMethodDescriptor(dstDesc.toCharArray(), descriptor);
-
-                                HashMap<String, Integer> names = new HashMap<>();
 
                                 // visit all method arguments
                                 mapArguments(mappingVisitor, yarnMethod, named, descriptor, yarnTree, yarn2official, names);
@@ -186,12 +190,25 @@ public class MojarnMappingsLayer implements MappingLayer {
      * @throws IOException if the mapping visitor fails to accept the name(s)
      */
     private void mapArguments(MappingVisitor output, MappingTree.MethodMapping method, int named, List<@Nullable String> descriptor, MemoryMappingTree yarnTree, Map<String, String> yarn2official, HashMap<String, Integer> names) throws IOException {
-        int i = 0;
-        for (MappingTree.MethodArgMapping arg : method.getArgs()) {
+        int offset = 0;
+        MappingTree.MethodArgMapping[] args = method.getArgs().toArray(new MappingTree.MethodArgMapping[0]);
+        Arrays.sort(args, Comparator.comparingInt(MappingTreeView.MethodArgMappingView::getLvIndex));
+        if (args.length == descriptor.size()) {
+            offset = -1;
+        } else if (args.length != 0 && args[args.length - 1].getLvIndex() >= descriptor.size()) {
+            offset = args[args.length - 1].getLvIndex() - descriptor.size() + 1;
+        }
+
+        for (MappingTree.MethodArgMapping arg : args) {
             String argName = arg.getDstName(named);
             if (argName != null) {
+                if (offset >= 0 && (arg.getLvIndex() - offset < 0 || arg.getLvIndex() - offset >= descriptor.size())) {
+                    MojarnPlugin.LOGGER.debug("Skipping method {} (LVT offset mismatch)}", method.getName(named));
+                    skipped++;
+                    break;
+                }
                 // check if the argument is a class
-                String desc = descriptor.get(i++);
+                String desc = descriptor.get(offset < 0 ? -(offset-- + 1) : arg.getLvIndex() - offset);
                 if (this.remapArguments && desc != null) {
                     // get the class mapping of the argument type
                     MappingTree.ClassMapping typeClass = yarnTree.getClass(desc, named);
@@ -200,8 +217,9 @@ public class MojarnMappingsLayer implements MappingLayer {
                         // skip if class remapping is disabled
                         String typeName = getClassName(desc);
 
-                        if (yarn2official.containsKey(typeName)) {
-                            argName = remapToOfficial(yarn2official, typeName, argName);
+                        String remapped = yarn2official.get(typeName);
+                        if (remapped != null) {
+                            argName = tryRemap(typeName, argName, remapped);
                         }
                     }
                 }
@@ -220,12 +238,13 @@ public class MojarnMappingsLayer implements MappingLayer {
 
     /**
      * Remaps the argument name based on its type
-     * @param yarn2official map of yarn to official class mapping names
+     *
      * @param typeName the (yarn) type name of the argument
      * @param argName the argument name to remap
+     * @param remapped the remapped (target) argument name
      * @return the remapped name, or {@code null} if the name should be dropped.
      */
-    private @Nullable String remapToOfficial(Map<String, String> yarn2official, @NotNull String typeName, String argName) {
+    private @Nullable String tryRemap(@NotNull String typeName, String argName, String remapped) {
         // check if class ends in numeric suffix
         if (!Character.isDigit(typeName.charAt(typeName.length() - 1))) {
             // strip numeric suffix on argument (if it exists)
@@ -236,15 +255,17 @@ public class MojarnMappingsLayer implements MappingLayer {
 
         // check if the argument name is the same as the type name
         if (argName.equalsIgnoreCase(typeName)) {
-            String offDst = yarn2official.get(typeName);
-            return lowerCamelCase(offDst);
+            return remapped;
         } else if (this.partialMatch) {
             // check if the argument name contains part of the type name
             // split the name ("CamelCase" -> ["Camel", "Case"])
-            for (String s : PATTERN.split(typeName)) {
-                if (s.equalsIgnoreCase(argName)) {
-                    String offDst = yarn2official.get(typeName);
-                    return lowerCamelCase(offDst);
+            String[] split = PATTERN.split(typeName);
+            String[] split1 = PATTERN.split(remapped);
+            if (split.length == split1.length) {
+                for (int i = 0; i < split.length; i++) {
+                    if (split[i].equalsIgnoreCase(argName)) {
+                        return lowerCamelCase(split1[i]);
+                    }
                 }
             }
         }

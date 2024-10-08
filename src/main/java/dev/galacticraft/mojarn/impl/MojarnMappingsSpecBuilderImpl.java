@@ -30,7 +30,7 @@ import net.fabricmc.loom.configuration.providers.mappings.mojmap.MojangMappingsS
 public class MojarnMappingsSpecBuilderImpl implements MojarnMappingsSpecBuilder {
     boolean nameSyntheticMethods = false;
     boolean remapArguments = true;
-    boolean partialMatch = false;
+    boolean partialMatch = true;
     boolean skipDifferent = false;
     boolean mapVariables = true;
     boolean skipCI = true;

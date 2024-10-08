@@ -87,8 +87,8 @@ license {
 }
 
 gradlePlugin {
-    website.set("https://github.com/TeamGalacticraft/Mojarn")
-    vcsUrl.set("https://github.com/TeamGalacticraft/Mojarn")
+    website.set("https://github.com/TeamGalacticraft/mojarn")
+    vcsUrl.set("https://github.com/TeamGalacticraft/mojarn")
 
     plugins {
         create(pluginId) {
