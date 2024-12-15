@@ -150,6 +150,7 @@ public class MojarnMappingsLayer implements MappingLayer {
         }
 
         long time = System.currentTimeMillis() - start;
+        MojarnPlugin.LOGGER.info("Failed to map {} method arguments due to LVT mismatch.", this.skipped);
         MojarnPlugin.LOGGER.info("Mapping layer generation took {}ms", time);
     }
 
@@ -203,8 +204,8 @@ public class MojarnMappingsLayer implements MappingLayer {
             String argName = arg.getDstName(named);
             if (argName != null) {
                 if (offset >= 0 && (arg.getLvIndex() - offset < 0 || arg.getLvIndex() - offset >= descriptor.size())) {
-                    MojarnPlugin.LOGGER.debug("Skipping method {} (LVT offset mismatch)}", method.getName(named));
-                    skipped++;
+                    MojarnPlugin.LOGGER.debug("Skipping arguments of method '{}' (LVT offset mismatch)", method.getName(named));
+                    this.skipped++;
                     break;
                 }
                 // check if the argument is a class

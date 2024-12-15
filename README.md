@@ -2,7 +2,7 @@
 Mixes official and file (yarn) mappings for better parameter names.
 
 ## Usage
-To install mojarn, add the galacticraft repository to your `settings.gradle.kts` file:
+To install mojarn, add the Galacticraft repository to your `settings.gradle.kts` file:
 ```kotlin
 pluginManagement {
     repositories {
@@ -14,7 +14,7 @@ pluginManagement {
 Then, add the following to your `build.gradle.kts` file:
 ```kotlin
 plugins {
-    id("dev.galacticraft.mojarn") version("0.5.0+13")
+    id("dev.galacticraft.mojarn") version("0.5.2+15")
 }
 ```
 
