@@ -24,7 +24,7 @@ plugins {
     `java-gradle-plugin`
     `maven-publish`
     id("com.gradle.plugin-publish") version("1.3.1")
-    id("org.cadixdev.licenser") version("0.6.1")
+    id("com.diffplug.spotless") version("7.0.3")
 }
 
 val pluginGroup = project.property("plugin.group").toString()
@@ -81,9 +81,15 @@ tasks.javadoc {
     options.encoding = "UTF-8"
 }
 
-license {
-    header(rootProject.file("LICENSE_HEADER.txt"))
-    include("**/dev/galacticraft/**/*.java")
+spotless {
+    lineEndings = com.diffplug.spotless.LineEnding.UNIX
+
+    java {
+        licenseHeader(processLicenseHeader(rootProject.file("LICENSE")))
+        leadingTabsToSpaces()
+        removeUnusedImports()
+        trimTrailingWhitespace()
+    }
 }
 
 gradlePlugin {
@@ -113,3 +119,10 @@ publishing {
     }
 }
 
+fun processLicenseHeader(license: File): String {
+    val text = license.readText()
+    return "/*\n * " + text.substring(text.indexOf("Copyright"))
+        .replace("\n", "\n * ")
+        .replace("* \n", "*\n")
+        .trim() + "/\n\n"
+}

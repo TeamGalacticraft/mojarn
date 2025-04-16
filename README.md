@@ -6,7 +6,8 @@ To install mojarn, add the Galacticraft repository to your `settings.gradle.kts`
 ```kotlin
 pluginManagement {
     repositories {
-        maven("https://maven.galacticraft.dev/repository/maven-releases/")
+//        maven("https://maven.galacticraft.dev/repository/maven-releases/") // currently offline
+        maven("https://repo.terradevelopment.net/repository/maven-releases/")
     }
 }
 ```
@@ -14,7 +15,7 @@ pluginManagement {
 Then, add the following to your `build.gradle.kts` file:
 ```kotlin
 plugins {
-    id("dev.galacticraft.mojarn") version("0.5.2+15")
+    id("dev.galacticraft.mojarn") version("0.5.2+17")
 }
 ```
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Team Galacticraft
+ * Copyright (c) 2024-2025 Team Galacticraft
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -63,7 +63,7 @@ public interface MojarnMappingsSpecBuilder {
      * @return this builder
      */
     MojarnMappingsSpecBuilder mapVariables(boolean mapVariables);
-    
+
     /**
      * Whether to disable mojarn when in a CI environment.
      * @param skipCI whether to disable mojarn when in a CI environment
