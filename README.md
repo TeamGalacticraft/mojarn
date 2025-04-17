@@ -15,7 +15,7 @@ pluginManagement {
 Then, add the following to your `build.gradle.kts` file:
 ```kotlin
 plugins {
-    id("dev.galacticraft.mojarn") version("0.6.0+18")
+    id("dev.galacticraft.mojarn") version("0.6.1+19")
 }
 ```
 

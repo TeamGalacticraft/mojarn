@@ -32,7 +32,7 @@ jobs:
       - name: Initialize build environment
         run: ./gradlew
 
-      - name: Checkstyle
+      - name: Spotless check
         run: ./gradlew spotlessCheck
 
       - name: Build

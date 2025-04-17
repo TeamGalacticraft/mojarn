@@ -33,7 +33,7 @@ public class MojarnMappingsSpecBuilderImpl implements MojarnMappingsSpecBuilder 
     boolean partialMatch = true;
     boolean skipDifferent = false;
     boolean mapVariables = true;
-    boolean copyComments = false;
+    boolean copyComments = true;
     boolean skipCI = true;
     boolean fileIsEnigma = false;
 
