@@ -33,6 +33,7 @@ public class MojarnMappingsSpecBuilderImpl implements MojarnMappingsSpecBuilder 
     boolean partialMatch = true;
     boolean skipDifferent = false;
     boolean mapVariables = true;
+    boolean copyComments = false;
     boolean skipCI = true;
     boolean fileIsEnigma = false;
 
@@ -67,6 +68,12 @@ public class MojarnMappingsSpecBuilderImpl implements MojarnMappingsSpecBuilder 
     }
 
     @Override
+    public MojarnMappingsSpecBuilder copyComments(boolean copyComments) {
+        this.copyComments = copyComments;
+        return this;
+    }
+
+    @Override
     public MojarnMappingsSpecBuilder skipCI(boolean skipCI) {
         this.skipCI = skipCI;
         return this;
@@ -79,7 +86,7 @@ public class MojarnMappingsSpecBuilderImpl implements MojarnMappingsSpecBuilder 
     }
 
     public MojarnMappingsSpec build(MappingsSpec<?> intermediary, MappingsSpec<?> mojang, MappingsSpec<?> file) {
-        return new MojarnMappingsSpec(intermediary, mojang, file, this.remapArguments, this.partialMatch, this.skipDifferent, this.mapVariables, this.skipCI);
+        return new MojarnMappingsSpec(intermediary, mojang, file, this.remapArguments, this.partialMatch, this.skipDifferent, this.mapVariables, this.copyComments, this.skipCI);
     }
 
     public MojarnMappingsSpec build(MappingsSpec<?> intermediary, MappingsSpec<?> file) {

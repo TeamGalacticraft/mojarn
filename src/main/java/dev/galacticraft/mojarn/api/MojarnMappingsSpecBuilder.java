@@ -58,11 +58,19 @@ public interface MojarnMappingsSpecBuilder {
     MojarnMappingsSpecBuilder skipDifferent(boolean skipDifferent);
 
     /**
-     * Whether to map variables.
+     * Whether to copy variable names.
+     * There is no type information available, so names may be mismatched.
      * @param mapVariables whether to map variables
      * @return this builder
      */
     MojarnMappingsSpecBuilder mapVariables(boolean mapVariables);
+
+    /**
+     * Whether to copy javadoc comments.
+     * @param copyComments whether to copy javadoc comments
+     * @return this builder
+     */
+    MojarnMappingsSpecBuilder copyComments(boolean copyComments);
 
     /**
      * Whether to disable mojarn when in a CI environment.

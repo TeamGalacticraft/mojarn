@@ -26,9 +26,9 @@ import net.fabricmc.loom.api.mappings.layered.MappingContext;
 import net.fabricmc.loom.api.mappings.layered.spec.MappingsSpec;
 import org.jetbrains.annotations.NotNull;
 
-public record MojarnMappingsSpec(@NotNull MappingsSpec<?> intermediary, @NotNull MappingsSpec<?> mojang, @NotNull MappingsSpec<?> yarn, boolean remapArguments, boolean partialMatch, boolean skipDifferent, boolean matchVariables, boolean skipCI) implements MappingsSpec<MojarnMappingsLayer> {
+public record MojarnMappingsSpec(@NotNull MappingsSpec<?> intermediary, @NotNull MappingsSpec<?> mojang, @NotNull MappingsSpec<?> yarn, boolean remapArguments, boolean partialMatch, boolean skipDifferent, boolean matchVariables, boolean copyComments, boolean skipCI) implements MappingsSpec<MojarnMappingsLayer> {
     @Override
     public MojarnMappingsLayer createLayer(MappingContext context) {
-        return new MojarnMappingsLayer(this.intermediary.createLayer(context), this.mojang.createLayer(context), this.yarn.createLayer(context), this.remapArguments, this.partialMatch, this.skipDifferent, this.matchVariables, this.skipCI);
+        return new MojarnMappingsLayer(this.intermediary.createLayer(context), this.mojang.createLayer(context), this.yarn.createLayer(context), this.remapArguments, this.partialMatch, this.skipDifferent, this.matchVariables, this.copyComments, this.skipCI);
     }
 }

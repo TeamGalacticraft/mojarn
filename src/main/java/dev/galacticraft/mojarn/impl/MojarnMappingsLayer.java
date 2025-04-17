@@ -48,10 +48,11 @@ public class MojarnMappingsLayer implements MappingLayer {
     private final boolean partialMatch;
     private final boolean skipDifferent;
     private final boolean mapVariables;
+    private final boolean copyComments;
     private final boolean skipCI;
     private int skipped = 0;
 
-    public MojarnMappingsLayer(@NotNull MappingLayer intermediary, @NotNull MappingLayer mojang, @NotNull MappingLayer yarn, boolean remapArguments, boolean partialMatch, boolean skipDifferent, boolean mapVariables, boolean skipCI) {
+    public MojarnMappingsLayer(@NotNull MappingLayer intermediary, @NotNull MappingLayer mojang, @NotNull MappingLayer yarn, boolean remapArguments, boolean partialMatch, boolean skipDifferent, boolean mapVariables, boolean copyComments, boolean skipCI) {
         this.intermediary = intermediary;
         this.mojang = mojang;
         this.yarn = yarn;
@@ -59,6 +60,7 @@ public class MojarnMappingsLayer implements MappingLayer {
         this.partialMatch = partialMatch;
         this.skipDifferent = skipDifferent;
         this.mapVariables = mapVariables;
+        this.copyComments = copyComments;
         this.skipCI = skipCI;
     }
 
@@ -118,39 +120,55 @@ public class MojarnMappingsLayer implements MappingLayer {
             // check if yarn has mapped the class
             if (yarnClass != null) {
                 mappingVisitor.visitClass(clazz.getSrcName());
-                // visit all official methods
-                for (MappingTree.MethodMapping method : clazz.getMethods()) {
-                    String intermediaryMethod = method.getDstName(intermediary);
-                    // ensure that intermediary has the method
-                    if (intermediaryMethod != null) {
-                        MappingTree.MethodMapping yarnMethod = yarnClass.getMethod(intermediaryMethod, method.getDstDesc(intermediary));
-                        // check if yarn has mapped the method
-                        if (yarnMethod != null) {
-                            String dstDesc = yarnMethod.getDstDesc(named);
-                            if (dstDesc != null) {
-                                mappingVisitor.visitMethod(method.getSrcName(), method.getSrcDesc());
 
-                                names.clear(); // reset used names
-                                parseMethodDescriptor(dstDesc.toCharArray(), descriptor);
+                if (this.copyComments) {
+                    if (yarnClass.getComment() != null) {
+                        mappingVisitor.visitComment(MappedElementKind.CLASS, yarnClass.getComment());
+                    }
 
-                                // visit all method arguments
-                                mapArguments(mappingVisitor, yarnMethod, named, descriptor, yarnTree, yarn2official, names);
-
-                                // visit all method variables (if enabled)
-                                // no type data, so it is just copied verbatim
-                                if (this.mapVariables) {
-                                    mapVariables(mappingVisitor, yarnMethod, named, names);
-                                }
+                    for (MappingTree.FieldMapping field : clazz.getFields()) {
+                        String dstName = field.getDstName(intermediary);
+                        if (dstName != null) {
+                            MappingTree.FieldMapping yarnField = yarnClass.getField(dstName, field.getSrcDesc());
+                            if (yarnField != null && yarnField.getComment() != null) {
+                                mappingVisitor.visitField(field.getSrcName(), field.getSrcDesc());
+                                mappingVisitor.visitComment(MappedElementKind.FIELD, yarnField.getComment());
                             }
                         }
                     }
                 }
-                mappingVisitor.visitEnd();
+
+                // visit all official methods
+                for (MappingTree.MethodMapping method : clazz.getMethods()) {
+                    String intermediaryMethod = method.getDstName(intermediary); // note: intermediary method is null for special methods (<init>, <clinit>)
+                    MappingTree.MethodMapping yarnMethod = yarnClass.getMethod(intermediaryMethod != null ? intermediaryMethod : method.getSrcName(), method.getDstDesc(intermediary));
+                    // check if yarn has mapped the method
+                    if (yarnMethod != null) {
+                        mappingVisitor.visitMethod(method.getSrcName(), method.getSrcDesc());
+                        if (this.copyComments && yarnMethod.getComment() != null) {
+                            mappingVisitor.visitComment(MappedElementKind.METHOD, yarnMethod.getComment());
+                        }
+                        String dstDesc = yarnMethod.getDstDesc(named);
+                        if (dstDesc != null) {
+                            names.clear(); // reset used names
+                            parseMethodDescriptorLVT(dstDesc.toCharArray(), descriptor);
+
+                            // visit all method arguments
+                            mapArguments(mappingVisitor, yarnMethod, named, descriptor, yarnTree, yarn2official, names);
+
+                            // visit all method variables (if enabled)
+                            // no type data, so it is just copied verbatim
+                            if (this.mapVariables) {
+                                mapVariables(mappingVisitor, yarnMethod, named, names);
+                            }
+                        }
+                    }
+                }
             }
         }
 
         long time = System.currentTimeMillis() - start;
-        MojarnPlugin.LOGGER.info("Failed to map {} method arguments due to LVT mismatch.", this.skipped);
+        MojarnPlugin.LOGGER.debug("Failed to map {} method arguments due to LVT mismatch.", this.skipped);
         MojarnPlugin.LOGGER.info("Mapping layer generation took {}ms", time);
     }
 
@@ -159,7 +177,7 @@ public class MojarnMappingsLayer implements MappingLayer {
      * @param desc the method descriptor to parse
      * @param descriptor the output list (will be cleared)
      */
-    private static void parseMethodDescriptor(char[] desc, List<String> descriptor) {
+    private static void parseMethodDescriptorLVT(char[] desc, List<String> descriptor) {
         descriptor.clear();
         for (int i = 1; i < desc.length; i++) {
             if (desc[i] == 'L') {
@@ -175,6 +193,9 @@ public class MojarnMappingsLayer implements MappingLayer {
             } else {
                 // primitive types have no mappings
                 descriptor.add(null);
+                if (desc[i] == 'D' || desc[i] == 'J') { // doubles and longs are fat
+                    descriptor.add(null);
+                }
             }
         }
     }
@@ -203,24 +224,27 @@ public class MojarnMappingsLayer implements MappingLayer {
         for (MappingTree.MethodArgMapping arg : args) {
             String argName = arg.getDstName(named);
             if (argName != null) {
-                if (offset >= 0 && (arg.getLvIndex() - offset < 0 || arg.getLvIndex() - offset >= descriptor.size())) {
-                    MojarnPlugin.LOGGER.debug("Skipping arguments of method '{}' (LVT offset mismatch)", method.getName(named));
-                    this.skipped++;
-                    break;
-                }
                 // check if the argument is a class
-                String desc = descriptor.get(offset < 0 ? -(offset-- + 1) : arg.getLvIndex() - offset);
-                if (this.remapArguments && desc != null) {
-                    // get the class mapping of the argument type
-                    MappingTree.ClassMapping typeClass = yarnTree.getClass(desc, named);
-                    // if there is a mapping for this type, try to remap it.
-                    if (typeClass != null) {
-                        // skip if class remapping is disabled
-                        String typeName = getClassName(desc);
+                if (this.remapArguments) {
+                    if (offset >= 0 && (arg.getLvIndex() - offset < 0 || arg.getLvIndex() - offset >= descriptor.size())) {
+                        MojarnPlugin.LOGGER.warn("Skipping arguments of method '{}' <{}> (LVT offset mismatch)", method.getName(named), method.getSrcName());
+                        this.skipped++;
+                        break;
+                    }
 
-                        String remapped = yarn2official.get(typeName);
-                        if (remapped != null) {
-                            argName = tryRemap(typeName, argName, remapped);
+                    String desc = descriptor.get(offset < 0 ? -(offset-- + 1) : arg.getLvIndex() - offset);
+                    if (desc != null) {
+                        // get the class mapping of the argument type
+                        MappingTree.ClassMapping typeClass = yarnTree.getClass(desc, named);
+                        // if there is a mapping for this type, try to remap it.
+                        if (typeClass != null) {
+                            // skip if class remapping is disabled
+                            String typeName = getClassName(desc);
+
+                            String remapped = yarn2official.get(typeName);
+                            if (remapped != null) {
+                                argName = tryRemap(typeName, argName, remapped);
+                            }
                         }
                     }
                 }
