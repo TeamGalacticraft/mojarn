@@ -24,7 +24,7 @@ plugins {
     `java-gradle-plugin`
     `maven-publish`
     id("com.gradle.plugin-publish") version("1.3.1")
-    id("com.diffplug.spotless") version("7.0.3")
+    id("com.diffplug.spotless") version("7.0.4")
 }
 
 val pluginGroup = project.property("plugin.group").toString()
@@ -44,8 +44,8 @@ description = pluginDescription
 base.archivesName.set(pluginId)
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
 
     withSourcesJar()
     withJavadocJar()
@@ -70,7 +70,7 @@ dependencies {
 
 tasks.withType<JavaCompile> {
     options.encoding = "UTF-8"
-    options.release.set(17)
+    options.release.set(21)
 }
 
 tasks.withType<Jar> {
